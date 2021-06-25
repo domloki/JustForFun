@@ -1,0 +1,72 @@
+--------------------------To build server and client-------------
+
+$ make
+
+Server is currently configured to accept 1024 clients which
+can be reconfigured berfore running server by modifying MAX_CLIENTS
+macro present tcpChatServer.h file.
+
+==============================================================
+
+----------------------To run server--------------------------
+
+$ ./tcpServer
+
+Server will listen for incomming client also I have added some
+stats in server like number of clients connected, number of client left
+client id
+
+=============================================================
+
+----------------------To run client---------------------------
+
+$./tcpClient
+
+Client as soon as it joins it can see its unique Id and it is ready
+to send and receive message.
+Features of client.
+1. If Client is the only client on connected to chat server and client try
+to send message server will responed with "No other client to chat with"
+2. All existing client will be notified whenever an new client joins chat server
+3. All existing client will be notified whenever an client leave chat server
+
+==================================================================
+
+sample example at server
+
+$ Server socket establishment successfull
+$ Bind successfull for server
+$ Server in listing mode ready to accept clients
+$ Client 4 added to list of active clients
+$ Number of connected clients are 1
+$ Client 5 added to list of active clients
+$ Number of connected clients are 2
+$ Client 6 added to list of active clients
+$ Number of connected clients are 3
+$ Client 5 left chat server
+$ Number of connected client are 2
+$ Client 6 left chat server
+$ Number of connected client are 1
+$ Client 4 left chat server
+$ Number of connected client are 0
+
+=================================================================
+
+sample example at client
+
+$ Socket Creation successfull for client
+$ Successfull connected to server
+$ Your Unique Id is 4 enter bye to exit chat anytime
+$ Client 5 joined the chat server
+$ Client 6 joined the chat server
+$ Client 7 joined the chat server
+$ Message from User 5 : hi
+$ Message from User 6 : hello
+$ Message from User 7 : how are you
+$ I am fine
+$ Client 5 left the chat server
+$ Client 6 left the chat server
+$ Client 7 left the chat server
+$ how are you all
+$ Message from server: No other client to chat with
+$ bye
