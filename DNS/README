@@ -1,8 +1,6 @@
 ----------------Building Code -----------------------
 
-$ gcc dnsClient.c -o <Target_exe>
-
-it will generate dnsClient exe file
+$ make
 
 ====================================================
 
@@ -10,7 +8,7 @@ it will generate dnsClient exe file
 
 In terminal run following.
 
-$ ./<Target_exe>
+$ ./DNS
 $ Enter domain Name: <domain-name>
 
 ====================================================
@@ -28,3 +26,9 @@ Waiting for response from server...
 
 Name: google.com
 IP address: 142.250.182.142
+
+====================================================
+
+------------------Cleaning the code-----------------
+
+$ make clean
