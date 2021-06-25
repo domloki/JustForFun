@@ -1,0 +1,30 @@
+----------------Building Code -----------------------
+
+$ gcc dnsClient.c -o dnsClient
+
+it will generate dnsClient exe file
+
+====================================================
+
+---------------Running code------------------------
+
+In terminal run following.
+
+$ ./tcpClient
+$ Enter domain Name: <site address>
+
+====================================================
+eg: ( example is just for refernece with expected output)
+
+$ ./tcpClient
+$ Enter domain Name: www.iith.ac.in
+
+$ DNS Server: 192.168.35.52
+$ DNS query: www.iith.ac.in
+
+$ Sending query to server...
+$ Query sent successfully...
+$ Waiting for response from server...
+
+$ Name: www.iith.ac.in
+$ IP address: 192.168.36.56
