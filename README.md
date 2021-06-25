@@ -1,0 +1,2 @@
+# JustForFun
+Some side projects
