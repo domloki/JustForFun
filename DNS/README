@@ -1,6 +1,6 @@
 ----------------Building Code -----------------------
 
-$ make
+$ gcc dnsClient.c -o <Target_exe>
 
 ====================================================
 
@@ -8,27 +8,14 @@ $ make
 
 In terminal run following.
 
-$ ./DNS
-$ Enter domain Name: <domain-name>
-
 ====================================================
 eg: ( example is just for refernece with expected output)
 
-$ ./<Target_exe>
-Enter domain Name: google.com
+$ ./<Target_exe> -q -4 <DNS QUERY>
+$ ./<Target_exe> -q -4 google.com
 
-DNS Server: 127.0.0.53
-DNS query: google.com
+-q for Query
+-h for help
+-4 for IPv4 address
+-6 for IPv6 address
 
-Sending query to server...
-Query sent successfully...
-Waiting for response from server...
-
-Name: google.com
-IP address: 142.250.182.142
-
-====================================================
-
-------------------Cleaning the code-----------------
-
-$ make clean

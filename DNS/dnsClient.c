@@ -1,10 +1,4 @@
 #include "dnsClient.h"
-#include <errno.h>
-#include <netinet/in.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * @brief Function to count number of dots in dns request
@@ -301,7 +295,13 @@ static int sendQuery(dnsQueryP query, int len)
     return socketFd;
 }
 
-void printHdr(dnsHeaderT hdr)
+
+/**
+ * @brief Function to print response header
+ *
+ * @param hdr : Header member
+ */
+static void printHdr(dnsHeaderT hdr)
 {
     printf("Transaction Id: %d\n",ntohs(hdr.id));
     printf("Flag is: %d\n",ntohs(hdr.flag));
@@ -311,7 +311,14 @@ void printHdr(dnsHeaderT hdr)
     printf("No of Additional Answers: %d\n",ntohs(hdr.arCount));
 }
 
-void printQuery(char* qname, int len)
+
+/**
+ * @brief Function to print what was query
+ *
+ * @param qname : Pointer of query name
+ * @param   len : length of print querys
+ */
+static void printQuery(char* qname, int len)
 {
     printf("Query was: ");
     for ( int i=1; i<len-1; i++ )
@@ -322,14 +329,100 @@ void printQuery(char* qname, int len)
     printf("\n");
 }
 
-void deSeralize(char* dnsResponse, int len)
+
+/**
+ * @brief function to DNS response IP address
+ *
+ * @param resp : Pointer of response
+ * @param  len : length of IP adress to print
+ */
+static void printResp(char* resp, int len)
 {
-    int offset =0;
-    dnsQueryP dnsQuery = ( dnsQueryP ) calloc( 1, sizeof(dnsQueryT));
+    if ( 4 == len ) // For IPv4 address
+    {
+        printf ("DNS IP address is: %d.%d.%d.%d\n\n", resp[0]&0x000000FF, 
+                                                              resp[1]&0x000000FF, 
+                                                              resp[2]&0x000000FF, 
+                                                              resp[3]&0x000000FF);
+    }
+    else 
+    {
+        printf("CNAME: ");
+        for (int i=0; i<len-1;i++)
+        {
+            if (resp[i] >= 0 && resp[i] <= 9) printf(".");
+            else printf("%c",resp[i]);
+        }
+        printf("\n");
+    }
+    // TODO: IPV6 support
+}
+
+
+/**
+ * @brief Function to decode entire query response after removeing query header
+ *
+ * @param dnsResponse : Pointer to query response
+ * @param      offset : offset to what all have been read
+ * @param   numOfResp : Number of respose to read
+ *
+ * @returns SUCCESS if decode is success else FAILRE
+ */
+static int decodeResponse(char* dnsResponse, int offset, int numOfResp)
+{
+    dnsRespP dnsResp = NULL;
+    char* resp = NULL;
+
+    for ( int i=0; i< numOfResp; i++ )
+    {
+        dnsResp = (dnsRespP) calloc (numOfResp, sizeof(dnsRespT));
+        if ( NULL == dnsResp )
+        {
+            printf("Memory allocation failed");
+            return FAILURE;
+        }
+        memcpyWrapper(dnsResp, dnsResponse+offset, sizeof(dnsRespT));
+        offset += sizeof(dnsRespT);
+
+        dnsResp->len = ntohs(dnsResp->len);
+
+        resp = (char*) calloc (1, dnsResp->len);
+        if ( NULL == resp )
+        {
+            printf("Memory allocation failed\n");
+            free(dnsResp);
+            return FAILURE;
+        }
+
+        memcpyWrapper(resp, dnsResponse+offset, dnsResp->len);
+        offset += dnsResp->len;
+
+        printResp(resp, dnsResp->len);
+
+        free(dnsResp);
+        free(resp);
+    }
+    return SUCCESS;
+}
+
+
+/**
+ * @brief Deserialize DNS response
+ * 
+ * @param  dnsResponse : Pointer to query response
+ * @param          len : Length of query 
+ */
+static int deSeralize(char* dnsResponse, int len)
+{
+    int offset = 0;             /** To read how many bytes have been reads */
+    int retVal = 0;             /** return value */
+    dnsQueryP dnsQuery = NULL;  /** Pointer to dns query */
+
+    dnsQuery = ( dnsQueryP ) calloc( 1, sizeof(dnsQueryT));
     if ( NULL == dnsQuery )
     {
         printf("Memory allocation failed");
-        return;
+        return FAILURE;
     }
 
     memcpyWrapper(&dnsQuery->hdr, dnsResponse, sizeof(dnsHeaderT));
@@ -339,7 +432,8 @@ void deSeralize(char* dnsResponse, int len)
     if ( NULL == dnsQuery->ques.qname )
     {
         printf("Memory allocation failed");
-        return;
+        free(dnsQuery);
+        return FAILURE;
     }
     memcpyWrapper(dnsQuery->ques.qname, dnsResponse+offset, len);
     offset +=len;
@@ -352,10 +446,28 @@ void deSeralize(char* dnsResponse, int len)
 
     printHdr(dnsQuery->hdr);
     printQuery(dnsQuery->ques.qname, len);
+
+    retVal = decodeResponse(dnsResponse, offset, 
+                 ntohs(dnsQuery->hdr.anCount));
     
+    if ( FAILURE == retVal )
+    {
+        free(dnsQuery);
+        free(dnsQuery->ques.qname);
+        return FAILURE;
+    }
+    return SUCCESS;
 }
 
-int acceptResponse( int socketFd, char* dnsResponse, int len )
+
+/**
+ * @brief Function to accept DNS response
+ *
+ * @param    socketFd : Socket FD
+ * @param dnsResponse : Pointer to DNS response
+ * @param         len : Length of response
+ */
+static int acceptResponse( int socketFd, char* dnsResponse, int len )
 {
     struct sockaddr_in clientAddr;
     int recvLen = 0;
@@ -373,7 +485,11 @@ int acceptResponse( int socketFd, char* dnsResponse, int len )
 
     queryLen = len + END_CHAR;
 
-    deSeralize(dnsResponse, queryLen);
+    if ( FAILURE == deSeralize(dnsResponse, queryLen) )
+    {
+        close (socketFd);
+        return FAILURE;
+    }
 
     return SUCCESS;
 }
@@ -464,127 +580,3 @@ int main( int argc, char* argv[] )
 
     return  SUCCESS;
 }
-
-// int main ()
-// {
-//     char *dnsResponse;
-//     int clientSocket, sendLen, recvLen;
-//     socklen_t clientAddrLen;
-//     struct sockaddr_in clientAddr, serverAddr1;
-//     char dnsHdr[12], usrReq[100];
-//     int nameSize, dc, lenSz;
-//     char dn1[200] = {0};
-//     int currIdx =12, dnLen = 0;
-//     uint16_t noAns, ipLen;
-
-//     memset (dnsHdr, 0, 12);
-//     /** creating static DNS header */
-//     setDnsHdr(dnsHdr);
-
-//     /** Accepting DNS name from user */
-//     printf ("Enter domain Name: ");
-//     scanf ("%s", usrReq);
-
-//     nameSize = strlen (usrReq);
-//     char domainName[nameSize+1];
-//     strncpy (domainName, usrReq, nameSize+1);
-
-//     /** Counting number of . for forming DNS query packet */
-//     dc = countDots ( domainName, nameSize );
-//     lenSz = dc+1;
-//     int lenCnt[lenSz];
-
-//     for ( int i=0; i<dc+1; i++ )
-//     {
-//         lenCnt[i] = 0;
-//     }
-
-//     charCount (domainName, lenCnt, nameSize);
-
-//     /** Copying DNS header */
-//     stringCpy ( dn1, dnsHdr, 12, 0 );
-    
-//     /** Copting Domain name query */
-//     for ( int i=0; i< lenSz; i++ )
-//     {   
-//         dn1[currIdx++] = lenCnt[i];
-//         dnsCpy ( dn1, domainName, lenCnt[i], currIdx, dnLen );
-//         currIdx += lenCnt[i];
-//         dnLen += lenCnt[i]+1;
-//     }
-
-//     /** Setting DNS class and query */
-//     currIdx = setDnsClassAndValue ( dn1, currIdx );
-
-//     /** Creating UDP socket */
-//     if ( ( clientSocket = socket ( AF_INET, SOCK_DGRAM, IPPROTO_UDP ) ) < 0 )
-//     {
-//         printf ("Socket creation failed\n");
-//         return -1;
-//     }
-
-//     /** Setting up first server address */
-//     serverAddr1.sin_family = AF_INET;
-//     serverAddr1.sin_port = htons (DNS_PORT);
-//     serverAddr1.sin_addr.s_addr = inet_addr (DNS_SERVER_IP);
-
-//     printf ("\nDNS Server: %s\n", DNS_SERVER_IP );
-//     printf ("DNS query: %s\n",usrReq);
-//     printf ("\nSending query to server...\n");
-
-//     sendLen = sendto ( clientSocket, ( const void * )dn1, currIdx, 0, 
-//                        (const struct sockaddr *)&serverAddr1, 
-//                         sizeof(serverAddr1));
-//     if ( sendLen < 0 )
-//     {
-//         printf ("Sending failed %d\n", errno);
-//         close ( clientSocket );
-//         return -1;
-//     }
-//     printf ("Query sent successfully...\n");
-
-//     printf ("Waiting for response from server...\n\n");
-//     dnsResponse = ( char * ) calloc ( MAX_BUF, sizeof (char) );
-//     if ( NULL == dnsResponse )
-//     {
-//         printf ("Memory allocation failed\n");
-//         close (clientSocket);
-//         return -1;
-//     }
-//     recvLen = recvfrom ( clientSocket, (void *)dnsResponse, MAX_BUF, 0, 
-//                          ( struct sockaddr *)&clientAddr, &clientAddrLen );
-//     if ( recvLen < 0 )
-//     {
-//         printf ("Receive failed\n");
-//         close ( clientSocket );
-//         return -1;
-//     }
-
-//     /** Counting number of answer responded by server */
-//     noAns= dnsResponse[6] << 8 | dnsResponse[7];
-
-//     int i = 12+nameSize+4+12; /** seting index to ignore DNS header */
-//     for (; i< recvLen;i++ )
-//     {
-//         ipLen = dnsResponse[i]<<8 | dnsResponse[i+1];
-//         /** Check if response if IP Address or not by evulating length field */
-//         i+=2; /** skipping length field */
-//         if ( ipLen == 4 )
-//         {
-//             printf ("Name: %s\n",usrReq); 
-//             printf ("IP address: %d.%d.%d.%d\n\n", dnsResponse[i]&0x000000FF, 
-//                                      dnsResponse[i+1]&0x000000FF, 
-//                                      dnsResponse[i+2]&0x000000FF, 
-//                                      dnsResponse[i+3]&0x000000FF);
-//         }
-//         i+=ipLen-1; /** move index to next length filed */
-//         i+= 10; /** Skipping index to next ip if any*/
-//         noAns--;
-//         if ( noAns == 0 ) break;
-//     }
-
-//     free (dnsResponse);
-//     close (clientSocket);
-
-//     return 0;
-// }

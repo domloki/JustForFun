@@ -19,6 +19,8 @@
 #define FAILURE -1
 #define SUCCESS 0
 
+#pragma pack(1) 
+
 uint16_t idx = 0; /** Global identifer */
 
 /**
@@ -66,6 +68,19 @@ typedef struct dnsQuery
 } dnsQueryT,
  *dnsQueryP;
 
+/**
+ * @brief Structure to handle DNS response
+ */
+typedef struct dnsResp
+{
+    uint16_t pointerToDnsQuery; /** Pointer to query */
+    uint16_t qtype;             /** Query type */
+    uint16_t qclass;            /** Query Class */
+    uint32_t ttl;               /** Time to live */
+    uint16_t len;               /** Len of query */
+} dnsRespT,
+ *dnsRespP;
+
 static int countDots ( char *dn, int size );
 static void charCount ( char *domainName, int *lenCnt, int stnSz );
 static void stringCpy ( char *dest, char *src, int size, int offset );
@@ -80,5 +95,11 @@ static inline void fillOutGoingSocInfo(struct sockaddr_in* serverAddr1);
 static void inline memcpyWrapper( void* dest, void* src, int len );
 static void serializeData(char* buff, dnsQueryP query, int len);
 static int sendQuery(dnsQueryP query, int len);
+static void printHdr(dnsHeaderT hdr);
+static void printQuery(char* qname, int len);
+static void printResp(char* resp, int len);
+static int decodeResponse(char* dnsResponse, int offset, int numOfResp);
+static int deSeralize(char* dnsResponse, int len);
+static int acceptResponse( int socketFd, char* dnsResponse, int len );
 
 #endif /** DNS_CLIENT_H__ */
